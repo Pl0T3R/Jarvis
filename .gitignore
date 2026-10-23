@@ -1,0 +1,9 @@
+.gradle/
+build/
+app/build/
+local.properties
+app/libs/*.aar
+tools/out/
+*.iml
+.idea/
+__pycache__/

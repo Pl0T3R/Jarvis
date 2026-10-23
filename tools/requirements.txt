@@ -1,0 +1,5 @@
+sherpa-onnx==1.13.8
+sentencepiece
+pypinyin
+numpy
+soundfile

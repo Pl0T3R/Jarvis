@@ -153,7 +153,7 @@ class MainActivity : Activity() {
         col.addView(header("Rozmowa z AI (Claude)"))
         keyView = text("", 15f, TEXT).also { col.addView(it) }
         val keyEdit = EditText(this).apply {
-            hint = "Wklej klucz API z console.anthropic.com"
+            hint = "Wklej klucz API z platform.claude.com"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setTextColor(TEXT)
             setHintTextColor(DIM)

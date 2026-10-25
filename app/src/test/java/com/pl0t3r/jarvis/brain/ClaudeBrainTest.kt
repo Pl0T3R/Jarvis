@@ -74,7 +74,7 @@ class ClaudeBrainTest {
     @After
     fun stop() = server.close()
 
-    private fun brain(model: String = "claude-opus-5-5") = ClaudeBrain(
+    private fun brain(model: String = ClaudeBrain.DEFAULT_MODEL) = ClaudeBrain(
         { ClaudeBrain.Config("sk-ant-test", model, webSearch = true) },
         device,
         baseUrl = "http://127.0.0.1:${server.localPort}",
@@ -101,7 +101,7 @@ class ClaudeBrainTest {
         val betas = headers["anthropic-beta"].orEmpty()
         assertTrue(betas, "server-side-fallback-2026-07-01" in betas)
         assertTrue(betas, "thinking-binding-controls-2026-08-01" in betas)
-        assertEquals("claude-opus-5-5", first["model"].asText())
+        assertEquals("claude-sonnet-5-5", first["model"].asText())
         assertEquals("default", first["fallbacks"].asText())
         assertEquals("adaptive", first["thinking"]["type"].asText())
         assertEquals("drop_block", first["thinking"]["block_binding"]["prefix_mismatch_behavior"].asText())

@@ -39,10 +39,10 @@ class ClaudeBrain(
     data class Config(val apiKey: String, val model: String, val webSearch: Boolean)
 
     companion object {
-        const val DEFAULT_MODEL = "claude-opus-5-5"
+        const val DEFAULT_MODEL = "claude-sonnet-5-5"
         val MODELS = listOf(
-            "claude-opus-5-5" to "Claude Opus 5.5 (najmądrzejszy)",
-            "claude-sonnet-5-5" to "Claude Sonnet 5.5",
+            "claude-sonnet-5-5" to "Claude Sonnet 5.5 (domyślny: szybki i mądry)",
+            "claude-opus-5-5" to "Claude Opus 5.5 (najmądrzejszy, droższy)",
             "claude-haiku-5-5" to "Claude Haiku 5.5 (najszybszy, najtańszy)",
         )
         private const val IDLE_RESET_MS = 5 * 60 * 1000L

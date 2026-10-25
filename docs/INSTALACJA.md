@@ -6,11 +6,23 @@ JARVIS to asystent głosowy na Meta Quest 3. Mówisz „JARVIS, uruchom Spotify�
 
 - **Gogle w trybie dewelopera.** To samo, co przy Stopklatce (`docs/USTAWIENIA.md` w repo Stopklatki, kroki 1–2).
 - **Kabel USB-C do przesyłu danych** i komputer z Windows.
-- **Opcjonalnie klucz API Claude**, jeśli JARVIS ma rozmawiać, a nie tylko wykonywać komendy:
-  1. Wejdź na <https://console.anthropic.com> i załóż konto.
-  2. W **Billing** dodaj środki, na przykład 5 USD. To osobna opłata, niezależna od subskrypcji Claude.
-  3. W **API Keys** kliknij **Create Key** i skopiuj klucz (zaczyna się od `sk-ant-`).
-  4. Klucz wpiszesz tylko w skrypcie instalacyjnym albo w panelu JARVISA. Nikomu go nie wysyłaj.
+- **Opcjonalnie klucz API Claude**, jeśli JARVIS ma rozmawiać, a nie tylko wykonywać komendy. Instrukcja jest niżej, w sekcji „Wpłata i klucz API”.
+
+## Wpłata i klucz API (przed instalacją)
+
+API to osobna usługa, niezależna od subskrypcji Claude Pro. Płacisz z góry, a potem z wpłaconej kwoty schodzą koszty pytań.
+
+1. Wejdź na <https://platform.claude.com> (Claude Console). Zaloguj się albo załóż konto, możesz użyć tego samego e-maila co w Claude.
+2. Otwórz **Settings → Billing** (<https://platform.claude.com/settings/billing>).
+3. Kliknij **Buy credits**, wpisz kwotę (na początek wystarczy 5–10 USD), podaj kartę płatniczą i zatwierdź.
+   - Środki są dostępne od razu.
+   - Mogą zostać doliczone podatki (VAT).
+   - Środki ważne są rok od zakupu i nie podlegają zwrotowi.
+4. **Auto-reload** (automatyczne doładowanie) zostaw wyłączone. Wtedy nigdy nie wydasz więcej, niż wpłacisz. Gdy środki się skończą, JARVIS po prostu powie, że nie może połączyć się z serwerem, a komendy dalej będą działać.
+5. Otwórz **Settings → API Keys** i kliknij **Create Key**. Nazwij klucz na przykład „JARVIS” i skopiuj go.
+   - Klucz zaczyna się od `sk-ant-`.
+   - Strona pokaże go tylko raz, więc od razu zapisz go w bezpiecznym miejscu.
+6. Klucz wpiszesz w skrypcie instalacyjnym albo w panelu JARVISA. Nikomu go nie wysyłaj, także w czacie z Claude.
 
 ## Instalacja
 
@@ -55,7 +67,7 @@ Wszystkie komendy z tabeli działają offline i za darmo. Do internetu idą tylk
 | Ustawienie | Co zmienia |
 | --- | --- |
 | **Włącz / Wyłącz nasłuch** | Wyłączony JARVIS nie słucha, także po restarcie gogli |
-| **Model** | Opus 5.5 jest najmądrzejszy. Haiku 5.5 jest najszybszy i kilkadziesiąt razy tańszy |
+| **Model** | Domyślnie Sonnet 5.5: szybki i mądry. Opus 5.5 jest najmądrzejszy, ale dwa razy droższy. Haiku 5.5 jest najszybszy i kilkadziesiąt razy tańszy |
 | **Wyszukiwanie w internecie** | Pogoda, wiadomości, wyniki |
 | **Wykrywanie „JARVIS”: Dokładne** | Każde zdanie sprawdza mały Whisper. Najlepiej słyszy, ale gdy ktoś dużo mówi w pobliżu, gogle więcej liczą |
 | **Wykrywanie „JARVIS”: Oszczędne** | Prawie nie obciąża gogli, ale czasem nie usłyszy imienia |
@@ -71,11 +83,12 @@ Wszystkie komendy z tabeli działają offline i za darmo. Do internetu idą tylk
 
   | Model / rodzaj pytania | Koszt |
   | --- | --- |
-  | Opus 5.5 | około 1–2 centów |
-  | Pytanie z wyszukiwaniem w internecie | kilka centów |
+  | Sonnet 5.5 (domyślny) | około pół centa (5 USD wystarczy na kilkaset pytań) |
+  | Opus 5.5 | około 1 centa |
   | Haiku 5.5 | ułamek centa |
+  | Pytanie z wyszukiwaniem w internecie | dodatkowo 1–3 centy |
 
-  Wydatki widzisz w console.anthropic.com.
+  Wydatki widzisz w platform.claude.com na stronie **Cost**.
 - Klucz API jest zapisany tylko w goglach. W panelu jest przycisk „Usuń klucz”.
 
 ## Gdy coś nie działa

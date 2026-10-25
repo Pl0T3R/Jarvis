@@ -9,7 +9,7 @@ class Settings(context: Context) {
 
     enum class WakeMode { ACCURATE, ECONOMY }
 
-    /** Claude API key (from console.anthropic.com). Never leaves the headset except to api.anthropic.com. */
+    /** Claude API key (from the Claude Console, platform.claude.com). Never leaves the headset except to api.anthropic.com. */
     var apiKey: String
         get() = prefs.getString("api_key", "") ?: ""
         set(v) = prefs.edit().putString("api_key", v.trim()).apply()

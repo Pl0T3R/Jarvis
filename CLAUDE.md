@@ -116,5 +116,5 @@ Ask the owner before building it.
 | Commands | `LocalCommands` regexes, `PolishWords` |
 | What JARVIS says | `Phrases` |
 | Voice effect | `VoiceFx` (chorus, presence, reverb amounts) |
-| Personality, model and cost | `ClaudeBrain.systemPrompt()`, `DEFAULT_MODEL` (Opus 5.5), effort `LOW`, web search `maxUses(2)` |
+| Personality, model and cost | `ClaudeBrain.systemPrompt()`, `DEFAULT_MODEL` (Sonnet 5.5; the owner chose it), effort `LOW`, web search `maxUses(2)` |
 | End-of-phrase silence | `Segmenter` (`minSilenceDuration` 0.8 s) |

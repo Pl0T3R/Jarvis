@@ -61,7 +61,7 @@ if ($LASTEXITCODE -ne 0) { Write-Warning "Nie udało się dać zgody na uruchami
 if ($LASTEXITCODE -ne 0) { Write-Warning "Nie udało się wyłączyć usypiania (deviceidle)." }
 
 Write-Host ""
-Write-Host "Klucz API Claude (z console.anthropic.com) pozwala JARVISOWI odpowiadać na dowolne pytania."
+Write-Host "Klucz API Claude (z platform.claude.com) pozwala JARVISOWI odpowiadać na dowolne pytania."
 Write-Host "Bez klucza działają same komendy. Klucz trafia tylko na gogle."
 $secure = Read-Host "Wklej klucz i naciśnij Enter (albo sam Enter, żeby pominąć)" -AsSecureString
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)

@@ -14,8 +14,9 @@ $ErrorActionPreference = "Stop"
 $pkg = "com.pl0t3r.jarvis"
 
 function Find-Adb {
-    $cmd = Get-Command adb -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
+    # only a real adb.exe on PATH: an alias or wrapper named adb has no file path and can't be run with &
+    $cmd = Get-Command adb -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd -and $cmd.Source -and (Test-Path $cmd.Source)) { return $cmd.Source }
     $candidates = @(
         "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
         "$env:ProgramFiles\Meta Quest Developer Hub\resources\bin\adb.exe",
@@ -34,7 +35,8 @@ function Find-Adb {
 function Adb { & $script:adb @args; if ($LASTEXITCODE -ne 0) { throw "adb $($args -join ' ') nie powiodło się" } }
 
 if (-not (Test-Path $Apk)) { throw "Nie ma pliku $Apk" }
-$script:adb = Find-Adb
+$script:adb = Find-Adb | Select-Object -Last 1
+if (-not $script:adb -or -not (Test-Path $script:adb)) { throw "Nie udało się znaleźć ani pobrać adb.exe" }
 Write-Host "adb: $adb"
 
 & $adb start-server | Out-Null

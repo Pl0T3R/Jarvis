@@ -43,6 +43,8 @@ class Assistant(private val context: Context, private val settings: Settings) {
         /** A transcript this similar to what JARVIS said in the last 10 s is its own voice, not the user. */
         private const val ECHO_SIMILARITY = 0.7
         private const val ECHO_WINDOW_MS = 10_000L
+        /** The same sentence is never said twice within this time, whatever asked for it. */
+        private const val REPEAT_GUARD_MS = 5_000L
 
         /** The one assistant allowed to listen and speak; a new one takes over from an old one. */
         private val current = AtomicReference<Assistant?>()
@@ -307,6 +309,10 @@ class Assistant(private val context: Context, private val settings: Settings) {
         if (text.isBlank()) return
         if (current.get() !== this) {
             Log.w(TAG, "assistant $id is not the current one: not saying \"$text\"")
+            return
+        }
+        if (text == lastSpoken && System.currentTimeMillis() - lastSpokenAt < REPEAT_GUARD_MS) {
+            Log.w(TAG, "not repeating \"$text\" (said ${System.currentTimeMillis() - lastSpokenAt} ms ago)")
             return
         }
         said++

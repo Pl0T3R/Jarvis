@@ -17,6 +17,9 @@ class Speaker(context: Context) {
     companion object {
         const val OUTPUT_RATE = 48_000
         private const val TAG = "Jarvis"
+        /** One sound at a time in the whole app, even from two Speaker objects. */
+        private val playing = Any()
+        private var plays = 0
     }
 
     private val audio = context.getSystemService(AudioManager::class.java)
@@ -36,6 +39,10 @@ class Speaker(context: Context) {
     /** Blocks until the sound has played (or [stop] was called). */
     fun play(samples: FloatArray, rate: Int) {
         if (samples.isEmpty()) return
+        synchronized(playing) { playOnce(samples, rate, ++plays) }
+    }
+
+    private fun playOnce(samples: FloatArray, rate: Int, n: Int) {
         stopRequested = false
         val pcm = Resampler.resample(samples, rate, OUTPUT_RATE)
         VoiceFx.fadeEdges(pcm, OUTPUT_RATE, 4f)
@@ -58,14 +65,16 @@ class Speaker(context: Context) {
             return
         }
         audio.requestAudioFocus(focus)
+        val t0 = System.currentTimeMillis()
+        Log.i(TAG, "speaker #$n: ${pcm.size * 1000L / OUTPUT_RATE} ms, session ${track.audioSessionId}")
         try {
             track.play()
             // stream in 50 ms pieces so stop() takes effect quickly
             val piece = OUTPUT_RATE / 20
             var offset = 0
             while (offset < pcm.size && !stopRequested) {
-                val n = minOf(piece, pcm.size - offset)
-                val written = track.write(pcm, offset, n, AudioTrack.WRITE_BLOCKING)
+                val count = minOf(piece, pcm.size - offset)
+                val written = track.write(pcm, offset, count, AudioTrack.WRITE_BLOCKING)
                 if (written <= 0) break
                 offset += written
             }
@@ -76,6 +85,7 @@ class Speaker(context: Context) {
             }
             if (stopRequested) track.pause() else track.stop()
             track.flush()
+            Log.i(TAG, "speaker #$n: done after ${System.currentTimeMillis() - t0} ms${if (stopRequested) " (stopped)" else ""}")
         } catch (e: RuntimeException) {
             Log.w(TAG, "playback failed", e)
         } finally {

@@ -58,6 +58,8 @@ Wake modes (`Settings.wakeMode`):
   - brain input and output,
   - Claude errors and tool calls,
   - every spoken line as `say#<n> [assistant <id>]: "..."`. Two different ids speaking means two assistants ran at once; the same id twice means one assistant repeated itself; `ignored my own voice` means the mic heard JARVIS and the guard dropped it.
+- `log.ps1` collects a diagnostic log into `jarvis-log.txt`: the installed version, JARVIS processes, screen casting state, the `Jarvis` log and audio lines. It asks the owner to press "Test głosu" and ask the time first. Each playback logs `speaker #<n>: <ms> ms, session <id>` and `done after`. One `say#` and one `speaker #` per sentence while the owner hears it twice points outside the app (casting to a PC or phone plays the sound again with a delay).
+- Raise `versionCode` / `versionName` in `app/build.gradle.kts` with every APK given to the owner; the panel shows the version under the title.
 - Models can be pushed instead of downloaded: `adb push <dir> /sdcard/Android/data/com.pl0t3r.jarvis/files/models/` (layout in `ModelStore`).
 - Speech round trip on the PC:
   ```
@@ -98,7 +100,7 @@ Wake modes (`Settings.wakeMode`):
 - **Starting activities from the background** relies on the `SYSTEM_ALERT_WINDOW` app-op exemption.
 - **Boot:** Android 14 doesn't let `BOOT_COMPLETED` start a microphone service directly, hence the panel trick.
 - **Synthetic tests are pessimistic.** Piper mispronounces English names ("Spotify"), so real voices should do better. Tune on real speech before changing thresholds.
-- **Doubled speech (fixed blind, check on the Quest):** the owner heard every reply twice. Synthesis was checked not to duplicate, so the fix closes the three likely causes: only one `Assistant` may run per process (a new one stops and waits for the old), transcripts that match what JARVIS said in the last 10 s are dropped and wake hits are ignored for 1.2 s after it speaks, and playback is a single streamed `AudioTrack` at 48 kHz (resampled in-app by `Resampler`) that is stopped and released after the last frame. If it still repeats, read the `say#` lines.
+- **Doubled speech (fixed blind, check on the Quest):** the owner heard every reply twice. Synthesis was checked not to duplicate, so the fix closes the three likely causes: only one `Assistant` may run per process (a new one stops and waits for the old), transcripts that match what JARVIS said in the last 10 s are dropped and wake hits are ignored for 1.2 s after it speaks, and playback is a single streamed `AudioTrack` at 48 kHz (resampled in-app by `Resampler`) that is stopped and released after the last frame. `say()` also refuses the same sentence again within 5 s (`REPEAT_GUARD_MS`, log `not repeating`), and `Speaker` plays one sound at a time app-wide. If it still repeats, run `log.ps1` and read the `say#` / `speaker #` lines.
 
 ### Plan B
 

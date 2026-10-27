@@ -119,6 +119,7 @@ class MainActivity : Activity() {
         }
         col.addView(text("J.A.R.V.I.S.", 34f, ACCENT, bold = true).apply { gravity = Gravity.CENTER_HORIZONTAL })
         col.addView(text("Asystent głosowy. Powiedz „JARVIS, uruchom Spotify”.", 15f, DIM).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        col.addView(text("wersja ${packageManager.getPackageInfo(packageName, 0).versionName}", 13f, DIM).apply { gravity = Gravity.CENTER_HORIZONTAL })
 
         statusView = text("", 18f, TEXT).also { col.addView(it, margin(top = 24)) }
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }

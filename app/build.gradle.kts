@@ -32,8 +32,8 @@ android {
         applicationId = "com.pl0t3r.jarvis"
         minSdk = 32
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         ndk { abiFilters += "arm64-v8a" }
     }
 

@@ -7,3 +7,5 @@ tools/out/
 *.iml
 .idea/
 __pycache__/
+tools/platform-tools/
+jarvis-log.txt

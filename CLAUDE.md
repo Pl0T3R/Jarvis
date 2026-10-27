@@ -56,7 +56,8 @@ Wake modes (`Settings.wakeMode`):
   - wake hits with their score,
   - Whisper text and timing,
   - brain input and output,
-  - Claude errors and tool calls.
+  - Claude errors and tool calls,
+  - every spoken line as `say#<n> [assistant <id>]: "..."`. Two different ids speaking means two assistants ran at once; the same id twice means one assistant repeated itself; `ignored my own voice` means the mic heard JARVIS and the guard dropped it.
 - Models can be pushed instead of downloaded: `adb push <dir> /sdcard/Android/data/com.pl0t3r.jarvis/files/models/` (layout in `ModelStore`).
 - Speech round trip on the PC:
   ```
@@ -97,6 +98,7 @@ Wake modes (`Settings.wakeMode`):
 - **Starting activities from the background** relies on the `SYSTEM_ALERT_WINDOW` app-op exemption.
 - **Boot:** Android 14 doesn't let `BOOT_COMPLETED` start a microphone service directly, hence the panel trick.
 - **Synthetic tests are pessimistic.** Piper mispronounces English names ("Spotify"), so real voices should do better. Tune on real speech before changing thresholds.
+- **Doubled speech (fixed blind, check on the Quest):** the owner heard every reply twice. Synthesis was checked not to duplicate, so the fix closes the three likely causes: only one `Assistant` may run per process (a new one stops and waits for the old), transcripts that match what JARVIS said in the last 10 s are dropped and wake hits are ignored for 1.2 s after it speaks, and playback is a single streamed `AudioTrack` at 48 kHz (resampled in-app by `Resampler`) that is stopped and released after the last frame. If it still repeats, read the `say#` lines.
 
 ### Plan B
 
@@ -115,6 +117,9 @@ Ask the owner before building it.
 | App names | `AppMatcher.aliases`, `fillers` |
 | Commands | `LocalCommands` regexes, `PolishWords` |
 | What JARVIS says | `Phrases` |
-| Voice effect | `VoiceFx` (chorus, presence, reverb amounts) |
+| Voice effect | `VoiceFx`: EQ only, no delays (high-pass, 300 Hz dip, 3.2 kHz presence, 8 kHz air, de-esser, compressor), scaled by the "Efekt głosu" slider |
+| Voice pace and texture | `Synthesizer.SPEED` (0.95), `SENTENCE_PAUSE` (0.16 s), VITS `noiseScale` / `noiseScaleW` (0.55 / 0.7) |
+| What is read aloud | `SpeechText` (markup, emoji and links removed, symbols to words, sentence split) |
+| Self-hearing guard | `Assistant.QUIET_AFTER_SPEAKING_MS` (1.2 s), `ECHO_SIMILARITY` (0.7), `ECHO_WINDOW_MS` (10 s) |
 | Personality, model and cost | `ClaudeBrain.systemPrompt()`, `DEFAULT_MODEL` (Sonnet 5.5; the owner chose it), effort `LOW`, web search `maxUses(2)` |
 | End-of-phrase silence | `Segmenter` (`minSilenceDuration` 0.8 s) |

@@ -105,7 +105,9 @@ class JarvisService : Service() {
 
     override fun onDestroy() {
         assistant?.stop()
-        worker?.join(1500)
+        worker?.join(3000)
+        // a new assistant would take over from this one anyway (Assistant.run), but say so in the log
+        if (worker?.isAlive == true) Log.w(TAG, "assistant thread still running after stop")
         worker = null
         assistant = null
         Status.removeListener(statusListener)

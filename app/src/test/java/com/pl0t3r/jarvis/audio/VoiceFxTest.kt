@@ -17,13 +17,36 @@ class VoiceFxTest {
         FloatArray((seconds * rate).toInt()) { 0.5f * sin(2 * PI * 220 * it / rate).toFloat() }
 
     @Test
-    fun staysInRangeAndAddsTail() {
+    fun staysInRangeAndKeepsLength() {
         val rate = 22050
         val x = tone(1f, rate)
         for (amount in listOf(0f, 0.5f, 1f)) {
             val y = VoiceFx.process(x, rate, amount)
-            assertTrue(y.all { it.isFinite() && abs(it) <= 1f })
-            if (amount == 0f) assertEquals(x.size, y.size) else assertTrue(y.size > x.size)
+            assertTrue(y.all { it.isFinite() && abs(it) <= 0.92f })
+            assertEquals(x.size, y.size)
+        }
+    }
+
+    /**
+     * No echo, chorus or reverb: white noise has no correlation with itself at a delay, so after the
+     * effect it must still have none between 8 and 60 ms (the old chorus and reverb lived there and
+     * made the voice sound metallic).
+     */
+    @Test
+    fun addsNoEcho() {
+        val rate = 22050
+        val rng = java.util.Random(1)
+        val x = FloatArray(rate) { (rng.nextGaussian() * 0.2).toFloat() }
+        for (amount in listOf(0.5f, 1f)) {
+            val y = VoiceFx.process(x, rate, amount)
+            var energy = 0.0
+            for (v in y) energy += v * v
+            for (lagMs in 8..60) {
+                val lag = lagMs * rate / 1000
+                var c = 0.0
+                for (i in lag until y.size) c += y[i] * y[i - lag]
+                assertTrue("echo at $lagMs ms: ${c / energy}", abs(c / energy) < 0.1)
+            }
         }
     }
 
@@ -35,7 +58,10 @@ class VoiceFxTest {
         }
     }
 
-    /** ./gradlew test -PjarvisSamples=<dir>: renders <dir>/replies/X.wav to <dir>/jarvis/X_fx50.wav and X_fx100.wav. */
+    /**
+     * ./gradlew test -PjarvisSamples=<dir>: renders <dir>/replies/X.wav to <dir>/jarvis/X_fx50.wav and
+     * X_fx100.wav, at 48 kHz like the headset plays them.
+     */
     @Test
     fun renderSamples() {
         val dir = System.getProperty("jarvis.samples")
@@ -44,8 +70,8 @@ class VoiceFxTest {
         for (f in File(dir, "replies").listFiles { f -> f.name.endsWith(".wav") }!!.sortedBy { it.name }) {
             val (samples, rate) = Wav.read(f)
             for (amount in listOf(0.5f, 1f)) {
-                val y = VoiceFx.process(samples, rate, amount)
-                Wav.write(File(out, "${f.nameWithoutExtension}_fx${(amount * 100).toInt()}.wav"), y, rate)
+                val y = Resampler.resample(VoiceFx.process(samples, rate, amount), rate, Speaker.OUTPUT_RATE)
+                Wav.write(File(out, "${f.nameWithoutExtension}_fx${(amount * 100).toInt()}.wav"), y, Speaker.OUTPUT_RATE)
             }
         }
     }

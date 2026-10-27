@@ -194,6 +194,13 @@ class Transcriber(dir: File, val size: String, threads: Int) {
 
 /** Piper, Polish male voice. */
 class Synthesizer(dir: File) {
+    companion object {
+        /** A little slower than Piper's default: calm, like JARVIS. */
+        const val SPEED = 0.95f
+        /** Silence between sentences (seconds). */
+        const val SENTENCE_PAUSE = 0.16f
+    }
+
     private val tts = OfflineTts(
         config = OfflineTtsConfig(
             model = OfflineTtsModelConfig(
@@ -201,6 +208,9 @@ class Synthesizer(dir: File) {
                     model = "${dir.path}/pl_PL-darkman-medium.onnx",
                     tokens = "${dir.path}/tokens.txt",
                     dataDir = "${dir.path}/espeak-ng-data",
+                    // less random variation than the defaults (0.667 / 0.8): a steadier, cleaner voice
+                    noiseScale = 0.55f,
+                    noiseScaleW = 0.7f,
                 ),
                 numThreads = 2,
             ),
@@ -210,8 +220,24 @@ class Synthesizer(dir: File) {
 
     val sampleRate: Int get() = tts.sampleRate()
 
-    /** [speed] above 1 talks faster. */
-    fun speak(text: String, speed: Float = 1f): FloatArray = tts.generate(text, sid = 0, speed = speed).samples
+    /**
+     * Speaks [text] sentence by sentence (cleaned of markdown, emoji and links) with a short pause
+     * between sentences. [speed] above 1 talks faster.
+     */
+    fun speak(text: String, speed: Float = SPEED): FloatArray {
+        val parts = SpeechText.sentences(text)
+        if (parts.isEmpty()) return FloatArray(0)
+        val pause = FloatArray((SENTENCE_PAUSE * sampleRate).toInt())
+        val pieces = ArrayList<FloatArray>(parts.size * 2)
+        for ((i, sentence) in parts.withIndex()) {
+            if (i > 0) pieces += pause
+            pieces += tts.generate(sentence, sid = 0, speed = speed).samples
+        }
+        val out = FloatArray(pieces.sumOf { it.size })
+        var offset = 0
+        for (p in pieces) { System.arraycopy(p, 0, out, offset, p.size); offset += p.size }
+        return out
+    }
 
     fun release() = tts.release()
 }

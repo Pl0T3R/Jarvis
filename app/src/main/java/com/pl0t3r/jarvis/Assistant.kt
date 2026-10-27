@@ -19,6 +19,10 @@ import com.pl0t3r.jarvis.speech.Synthesizer
 import com.pl0t3r.jarvis.speech.Transcriber
 import com.pl0t3r.jarvis.speech.WakeWord
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * The listening loop (runs on JarvisService's worker thread):
@@ -34,7 +38,33 @@ class Assistant(private val context: Context, private val settings: Settings) {
         private const val RATE = Microphone.RATE
         private const val HEAD_SECONDS = 1.8f
         private val HALLUCINATIONS = listOf("amara", "napisy", "subtitles", "dziekuje za uwage", "dziekuje za obejrzenie")
+        /** Nothing is heard this long after JARVIS stops talking (the room's echo of its own voice). */
+        private const val QUIET_AFTER_SPEAKING_MS = 1200L
+        /** A transcript this similar to what JARVIS said in the last 10 s is its own voice, not the user. */
+        private const val ECHO_SIMILARITY = 0.7
+        private const val ECHO_WINDOW_MS = 10_000L
+
+        /** The one assistant allowed to listen and speak; a new one takes over from an old one. */
+        private val current = AtomicReference<Assistant?>()
+        private val ids = AtomicInteger()
+
+        /** True when [heard] is (most likely) JARVIS's own [spoken] sentence picked up by the microphone. */
+        internal fun isOwnEcho(heard: String, spoken: String): Boolean {
+            val h = Text.normalize(heard)
+            val s = Text.normalize(spoken)
+            // short phrases ("jarvis", "tak") are left alone: the user may well say them right after JARVIS
+            if (h.length < 10 || s.isEmpty()) return false
+            if (h.length >= 15 && h in s) return true
+            return Text.similarity(h, s) >= ECHO_SIMILARITY
+        }
     }
+
+    private val id = ids.incrementAndGet()
+    private val finished = CountDownLatch(1)
+    private var said = 0
+    private var lastSpoken = ""
+    private var lastSpokenAt = 0L
+    private var quietUntil = 0L
 
     private val store = ModelStore(context)
     private val mic = Microphone(context.getSystemService(android.media.AudioManager::class.java))
@@ -59,11 +89,24 @@ class Assistant(private val context: Context, private val settings: Settings) {
         speaker.stop()
     }
 
+    /** Waits until [run] has returned; false if it is still running after [ms]. */
+    fun awaitEnd(ms: Long): Boolean = finished.await(ms, TimeUnit.MILLISECONDS)
+
+    private val active: Boolean get() = running && current.get() === this
+
     /** Low memory: let go of the big Whisper model until it's needed again. */
     fun trim() { trimRequested = true }
 
     fun run() {
         startedAt = System.currentTimeMillis()
+        // never two assistants at once (each would answer, so every reply would be said twice)
+        val previous = current.getAndSet(this)
+        if (previous != null && previous !== this) {
+            Log.w(TAG, "assistant $id: stopping assistant ${previous.id} that was still running")
+            previous.stop()
+            if (!previous.awaitEnd(5000)) Log.w(TAG, "assistant ${previous.id} did not stop in 5 s; it stays muted")
+        }
+        Log.i(TAG, "assistant $id started")
         try {
             if (store.missing(settings).isNotEmpty()) {
                 Status.set(Status.State.ERROR, "Brak modeli mowy. Otwórz JARVIS i pobierz je.")
@@ -79,6 +122,9 @@ class Assistant(private val context: Context, private val settings: Settings) {
         } finally {
             mic.stop()
             release()
+            current.compareAndSet(this, null)
+            Log.i(TAG, "assistant $id ended")
+            finished.countDown()
         }
     }
 
@@ -116,7 +162,7 @@ class Assistant(private val context: Context, private val settings: Settings) {
         Status.set(Status.State.IDLE, "Słucham. Powiedz „JARVIS”.")
         var blockedShown = false
         var blockedSince = 0L
-        while (running) {
+        while (active) {
             if (trimRequested) {
                 trimRequested = false
                 if (commands !== gate) { commands?.release(); commands = null; Log.i(TAG, "released command model (low memory)") }
@@ -157,8 +203,10 @@ class Assistant(private val context: Context, private val settings: Settings) {
         val seg = segmenter ?: return
         for (phrase in seg.accept(chunk)) {
             if (phrase.size < RATE * 0.3f) continue
+            if (System.currentTimeMillis() < quietUntil) continue
             val head = if (phrase.size > RATE * HEAD_SECONDS) phrase.copyOf((RATE * HEAD_SECONDS).toInt()) else phrase
             val headText = gate?.transcribe(head) ?: continue
+            if (heardMyself(headText)) continue
             val hit = WakeMatcher.find(headText, threshold(settings.sensitivity)) ?: continue
             Log.i(TAG, "wake: \"$headText\" (${"%.2f".format(hit.score)})")
             chime()
@@ -172,6 +220,7 @@ class Assistant(private val context: Context, private val settings: Settings) {
     private fun economy(chunk: FloatArray) {
         val ww = wake ?: return
         if (!ww.accept(chunk)) return
+        if (System.currentTimeMillis() < quietUntil) return
         Log.i(TAG, "keyword spotter: JARVIS")
         chime()
         val seg = segmenter ?: return
@@ -180,8 +229,16 @@ class Assistant(private val context: Context, private val settings: Settings) {
         val phrase = listen(seg, ring.last((RATE * 1.5f).toInt()), waitForSpeechMs = 4000) ?: return
         val text = transcribe(phrase)
         val norm = Text.normalize(text)
-        if (norm.isEmpty() || HALLUCINATIONS.any { it in norm }) return
+        if (norm.isEmpty() || HALLUCINATIONS.any { it in norm } || heardMyself(text)) return
         respond(text, WakeMatcher.find(text, 0.6)?.command ?: text)
+    }
+
+    /** JARVIS's own last sentence came back through the microphone: ignore it. */
+    private fun heardMyself(text: String): Boolean {
+        if (System.currentTimeMillis() - lastSpokenAt > ECHO_WINDOW_MS) return false
+        if (!isOwnEcho(text, lastSpoken)) return false
+        Log.i(TAG, "ignored my own voice: \"$text\"")
+        return true
     }
 
     /** Sensitivity 0..1 -> how close to "jarvis" a heard word must be. */
@@ -229,7 +286,7 @@ class Assistant(private val context: Context, private val settings: Settings) {
         seg.accept(preroll).firstOrNull()?.let { return it }
         val start = System.currentTimeMillis()
         var heardSpeech = seg.speaking
-        while (running) {
+        while (active) {
             val chunk = mic.read() ?: return null
             ring.add(chunk)
             seg.accept(chunk).firstOrNull()?.let { return it }
@@ -248,6 +305,12 @@ class Assistant(private val context: Context, private val settings: Settings) {
 
     private fun say(text: String) {
         if (text.isBlank()) return
+        if (current.get() !== this) {
+            Log.w(TAG, "assistant $id is not the current one: not saying \"$text\"")
+            return
+        }
+        said++
+        Log.i(TAG, "say#$said [assistant $id]: \"$text\"")
         Status.answered(text)
         Status.set(Status.State.SPEAKING, text)
         val v = voice ?: return
@@ -256,7 +319,10 @@ class Assistant(private val context: Context, private val settings: Settings) {
         // half duplex: don't listen to ourselves
         mic.stop()
         speaker.play(audio, v.sampleRate)
-        if (running) startMic()
+        lastSpoken = text
+        lastSpokenAt = System.currentTimeMillis()
+        quietUntil = lastSpokenAt + QUIET_AFTER_SPEAKING_MS
+        if (active) startMic()
         segmenter?.reset()
         wake?.reset()
         ring.clear()
@@ -265,7 +331,7 @@ class Assistant(private val context: Context, private val settings: Settings) {
 
     private fun startMic(): Boolean {
         repeat(10) {
-            if (!running) return false
+            if (!active) return false
             if (mic.start()) return true
             Thread.sleep(1000)
         }
